@@ -1,0 +1,76 @@
+package models
+
+import "github.com/sunp13/dbtool"
+
+type {{ .ModelName }} struct{}
+
+// GetList
+func (m *{{.ModelName}}) GetList() (res []map[string]interface{},err error){
+    sql := `
+    select * from {{.TableName}}
+    where is_deleted = 0
+    `
+    res, err = dbtool.D.QuerySQL(sql, nil)
+    return
+}
+
+// GetListByID
+func (m *{{.ModelName}}) GetListByID(id string) (res map[string]interface{}, err error){
+    sql := `
+    select * from {{ .TableName }}
+    where {{ .PrimaryKey }} = ?
+    `
+    params := []interface{}{
+        id,
+    }
+
+    var result []map[string]interface{}
+    result, err = dbtool.D.QuerySQL(sql,params)
+    if len(result) > 0{
+        res = result[0]
+    }
+    return
+}
+
+// AddList
+func (m *{{.ModelName}}) AddList({{ JOIN .FieldsUpper "," }} string) (res int64, err error) {
+	sql := `
+	insert into {{ .TableName }}(
+	{{ JOIN .FieldsKey ",\n\t" }}
+	) values ({{ JOIN .FieldsQuestion ","}})
+	`
+	params := []interface{}{
+	{{ JOIN .FieldsUpper ",\n\t"}},
+	}
+
+	res, err = dbtool.D.UpdateSQL(sql, params)
+	return
+}
+
+// ModifyList
+func (m *{{ .ModelName }}) ModifyList({{ .PrimaryKeyUpper }} ,{{ JOIN .FieldsUpper "," }} string) (res int64, err error) {
+	sql := `
+	update {{ .TableName }} set
+    {{ JOIN .FieldsKey ",\n\t" }}
+	where {{ .PrimaryKey }} = ?
+	`
+	params := []interface{}{
+	{{ JOIN .FieldsUpper ",\n\t" }},
+	}
+	res, err = dbtool.D.UpdateSQL(sql, params)
+	return
+}
+
+// DeleteList
+func (m *{{ .ModelName }}) DeleteList(id string) (res int64, err error) {
+	sql := `
+	update {{ .TableName }} set
+	is_deleted = 1
+	where {{ .PrimaryKey }} = ?
+	`
+	params := []interface{}{
+		id,
+	}
+	res, err = dbtool.D.UpdateSQL(sql, params)
+	return
+}
