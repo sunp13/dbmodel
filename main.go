@@ -85,7 +85,7 @@ func main() {
 		"JOIN": func(data []string, spec string) string {
 			return strings.Join(data, spec)
 		},
-	}).Parse()
+	}).ParseFiles("./models/normal.tmpl")
 	if err != nil {
 		panic(err)
 	}
