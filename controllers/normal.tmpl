@@ -1,0 +1,233 @@
+package controllers
+
+import (
+	"strings"
+
+	"github.com/rs/zerolog/log"
+)
+
+type {{ .TableNameHumpUpper }} struct {
+	SecureController
+}
+
+// @Title 总数
+// @Description 总数
+// @Success 200 {object} entity.JSONResult
+// @router /count [get]
+func (c *{{ .TableNameHumpUpper }}) Count() {
+	c.VerifyJSON([]string{
+		"{{ .SchemaName }}.all.ro",
+		"{{ .SchemaName }}.{{ .TableName }}.ro",
+		"{{ .SchemaName }}.{{ .TableName }}.rw",
+	})
+
+	var result entity.JSONResult
+
+	data, err := models.{{ .TableNameHumpUpper }}.List()
+	if err != nil {
+		log.Error().Str("err", err.Error()).Send()
+		result.Code = 1
+		result.Message = "系统异常"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+	result.Result = data
+	c.Data["json"] = result
+	c.ServeJSON()
+}
+
+// @Title 分页
+// @Description 分页
+// @Param page query int false 1
+// @Param size query int false 10
+// @Success 200 {object} entity.JSONResult
+// @router /page [get]
+func (c *{{ .TableNameHumpUpper }}) Page() {
+	c.VerifyJSON([]string{
+		"{{ .SchemaName }}.all.ro",
+		"{{ .SchemaName }}.{{ .TableName }}.ro",
+		"{{ .SchemaName }}.{{ .TableName }}.rw",
+	})
+
+	var result entity.JSONResult
+	page, size := strings.TrimSpace(c.GetString("page")), strings.TrimSpace(c.GetString("size"))
+	begin, length := utils.UtilPaging(page, size)
+	data, err := models.{{ .TableNameHumpUpper }}.Page(begin, length)
+	if err != nil {
+		log.Error().Str("err", err.Error()).Send()
+		result.Code = 1
+		result.Message = "系统异常"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+	result.Result = data
+	c.Data["json"] = result
+	c.ServeJSON()
+}
+
+// @Title 信息
+// @Description 信息
+// @Param id query int true
+// @Success 200 {object} entity.JSONResult
+// @router /info [get]
+func (c *{{ .TableNameHumpUpper }}) Info() {
+	c.VerifyJSON([]string{
+		"{{ .SchemaName }}.all.ro",
+		"{{ .SchemaName }}.{{ .TableName }}.ro",
+		"{{ .SchemaName }}.{{ .TableName }}.rw",
+	})
+
+	var result entity.JSONResult
+	id := strings.TrimSpace(c.GetString("id"))
+
+	if !utils.R_NUM.MatchString(id) {
+		result.Code = 1
+		result.Message = "请求参数不正确"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+
+	data, err := models.{{ .TableNameHumpUpper }}.Info(id)
+	if err != nil {
+		log.Error().Str("err", err.Error()).Send()
+		result.Code = 1
+		result.Message = "系统异常"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+	result.Result = data
+	c.Data["json"] = result
+	c.ServeJSON()
+}
+
+// @Title 新增编辑
+// @Description 新增/编辑
+// @Param body body entity.Req{{ .TableNameHumpUpper }} true
+// @Success 200 {object} entity.JSONResult
+// @router /modify [post]
+func (c *{{ .TableNameHumpUpper }}) Modify() {
+	c.VerifyJSON([]string{
+		"{{ .SchemaName }}.{{ .TableName }}.rw",
+	})
+
+	var result entity.JSONResult
+	var req entity.{{ .TableNameHumpUpper }}
+
+	if err := global.JSON.Unmarshal(c.Ctx.Input.RequestBody, &req); err != nil {
+		result.Code = 1
+		result.Message = "JSON解析异常"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+
+	// 校验
+
+	var err error
+	if req.{{.PrimaryKeyHumpUpper }} == "" {
+		_, err = models.{{ .TableNameHumpUpper }}.Add(
+			req.{{ JOIN .FieldsKeyHumpUpper ",\n\treq." }},
+		)
+	} else if utils.R_NUM.MatchString(req.{{.PrimaryKeyHumpUpper }}) {
+		_, err = models.{{ .TableNameHumpUpper }}.Modify(
+			req.{{ .PrimaryKeyHumpUpper }},
+			req.{{ JOIN .FieldsKeyHumpUpper ",\n\treq." }},
+		)
+	} else {
+		result.Code = 1
+		result.Message = "请求参数不正确"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+
+	if err != nil {
+		log.Error().Str("err", err.Error()).Send()
+		result.Code = 1
+		result.Message = "系统异常"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+
+	result.Message = "成功"
+	c.Data["json"] = result
+	c.ServeJSON()
+}
+
+// @Title 删除
+// @Description 删除
+// @Param body body entity.ReqCommID true
+// @Success 200 {object} entity.JSONResult
+// @router /delete [post]
+func (c *{{ .TableNameHumpUpper }}) Delete() {
+	c.VerifyJSON([]string{
+		"{{ .SchemaName }}.{{ .TableName }}.rw",
+	})
+
+	var result entity.JSONResult
+	var req entity.ReqCommID
+
+	if err := global.JSON.Unmarshal(c.Ctx.Input.RequestBody, &req); err != nil {
+		result.Code = 1
+		result.Message = "请求参数不正确"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+
+	if !utils.R_NUM.MatchString(req.ID) {
+		result.Code = 1
+		result.Message = "请求参数不正确"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+
+	if _, err := models.{{ .TableNameHumpUpper }}.Delete(req.ID); err != nil {
+		log.Error().Str("err", err.Error()).Send()
+		result.Code = 1
+		result.Message = "系统异常"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+	result.Message = "成功"
+	c.Data["json"] = result
+	c.ServeJSON()
+}
+
+// @Title Filter
+// @Description Filter Data
+// @Param body body entity.CommData false "filter struct"
+// @Success 200 {object} entity.JSONResult
+// @router /filter [post]
+func (c {{ .TableNameHumpUpper }}) Filter() {
+	var result entity.JSONResult
+	var req entity.ReqCommData
+	if err := global.JSON.Unmarshal(c.Ctx.Input.RequestBody, &req); err != nil {
+		result.Code = 1
+		result.Message = "请求参数不正确"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+
+	data, err := models.{{ .TableNameHumpUpper }}.Filter(req)
+	if err != nil {
+		log.Error().Str("err", err.Error()).Send()
+		result.Code = 1
+		result.Message = "系统异常"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+
+	result.Result = data
+	c.Data["json"] = result
+	c.ServeJSON()
+}

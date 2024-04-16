@@ -2,22 +2,22 @@ package models
 
 import "github.com/sunp13/dbtool"
 
-type {{ .ModelName }} struct{}
+type {{ .TableNameHump }} struct{}
 
-// GetList
-func (m *{{.ModelName}}) GetList() (res []map[string]interface{},err error){
+// List
+func (m *{{.TableNameHump}}) List() (res []map[string]interface{},err error){
     sql := `
-    select * from {{.TableName}}
+    select * from {{.SchemaName}}.{{.TableName}}
     where is_deleted = 0
     `
     res, err = dbtool.D.QuerySQL(sql, nil)
     return
 }
 
-// GetListByID
-func (m *{{.ModelName}}) GetListByID(id string) (res map[string]interface{}, err error){
+// Info
+func (m *{{.TableNameHump}}) Info(id string) (res map[string]interface{}, err error){
     sql := `
-    select * from {{ .TableName }}
+    select * from {{.SchemaName}}.{{.TableName}}
     where {{ .PrimaryKey }} = ?
     `
     params := []interface{}{
@@ -32,39 +32,91 @@ func (m *{{.ModelName}}) GetListByID(id string) (res map[string]interface{}, err
     return
 }
 
-// AddList
-func (m *{{.ModelName}}) AddList({{ JOIN .FieldsUpper "," }} string) (res int64, err error) {
+{{ if NEQ .ForeignKey "" }}
+// ListFid
+func (m *{{.TableNameHump}}) ListFid(fid string) (res []map[string]interface{}, err error){
+    sql := `
+    select * from {{.SchemaName}}.{{.TableName}}
+    where {{ .ForeignKey }} = ?
+	and is_deleted = 0
+    `
+    params := []interface{}{
+        fid,
+    }
+
+    res, err = dbtool.D.QuerySQL(sql,params)
+    return
+}
+{{ end }}
+
+// Page
+func (m *{{.TableNameHump}}) Page(begin,size int64) (res []map[string]interface{},err error){
 	sql := `
-	insert into {{ .TableName }}(
-	{{ JOIN .FieldsKey ",\n\t" }}
-	) values ({{ JOIN .FieldsQuestion ","}})
+	SELECT * from {{.SchemaName}}.{{.TableName}}
+	where is_deleted=0
+	order by {{ .PrimaryKey }}
+	limit ?,?
 	`
 	params := []interface{}{
-	{{ JOIN .FieldsUpper ",\n\t"}},
+		begin,
+		size,
+	}
+	res, err = dbtool.D.QuerySQL(sql, params)
+	return
+}
+
+// Count
+func (m *{{.TableNameHump}}) Count() (res int64,err error){
+	sql := `
+	select count(1) as data_count from {{.SchemaName}}.{{.TableName}}
+	where is_deleted = 0
+	`
+	var result []map[string]interface{}
+	result, err = dbtool.D.QuerySQL(sql, nil)
+	if len(result) > 0 {
+		res, _ = strconv.ParseInt(fmt.Sprintf("%v", result[0]["data_count"]), 10, 64)
+	}
+	return
+}
+
+// Add
+func (m *{{.TableNameHump}}) Add({{ JOIN .FieldsKeyHump "," }} string) (res int64, err error) {
+	sql := `
+	insert into {{.SchemaName}}.{{.TableName}}(
+	{{ JOIN .FieldsKey ",\n\t" }},
+	add_time
+	) values ({{ JOIN .FieldsQuestion ","}},?)
+	`
+	params := []interface{}{
+	{{ JOIN .FieldsKeyHump ",\n\t"}},
+	time.Now().Format("2006-01-02 15:04:05"),
 	}
 
 	res, err = dbtool.D.UpdateSQL(sql, params)
 	return
 }
 
-// ModifyList
-func (m *{{ .ModelName }}) ModifyList({{ .PrimaryKeyUpper }} ,{{ JOIN .FieldsUpper "," }} string) (res int64, err error) {
+// Modify
+func (m *{{.TableNameHump}}) Modify({{ .PrimaryKeyHump }} ,{{ JOIN .FieldsKeyHump "," }} string) (res int64, err error) {
 	sql := `
-	update {{ .TableName }} set
-    {{ JOIN .FieldsKey ",\n\t" }}
+	update {{.SchemaName}}.{{.TableName}} set
+    {{ JOIN .FieldsModify ",\n\t" }},
+	modify_time = ?
 	where {{ .PrimaryKey }} = ?
 	`
 	params := []interface{}{
-	{{ JOIN .FieldsUpper ",\n\t" }},
+	{{ JOIN .FieldsKeyHump ",\n\t" }},
+	time.Now().Format("2006-01-02 15:04:05"),
+	{{ .PrimaryKeyHump }},
 	}
 	res, err = dbtool.D.UpdateSQL(sql, params)
 	return
 }
 
-// DeleteList
-func (m *{{ .ModelName }}) DeleteList(id string) (res int64, err error) {
+// Delete
+func (m *{{.TableNameHump}}) Delete(id string) (res int64, err error) {
 	sql := `
-	update {{ .TableName }} set
+	update {{.SchemaName}}.{{.TableName}} set
 	is_deleted = 1
 	where {{ .PrimaryKey }} = ?
 	`
@@ -73,4 +125,22 @@ func (m *{{ .ModelName }}) DeleteList(id string) (res int64, err error) {
 	}
 	res, err = dbtool.D.UpdateSQL(sql, params)
 	return
+}
+
+// Filter
+func (m *{{.TableNameHump}}) Filter(data map[string]string) (res []map[string]interface{}, err error) {
+	sql := `
+	select * from {{.SchemaName}}.{{.TableName}}
+	`
+	res, err = dbtool.D.QuerySQL(sql, nil)
+	if err != nil {
+		return
+	}
+	comb := dbtool.NewComb(res)
+	if val, ok := data["is_deleted"]; ok && val != "" {
+		comb = comb.FilterMust("is_deleted", val)
+	}
+
+	// custom field filter
+	return comb.Data, nil
 }

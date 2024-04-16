@@ -1,0 +1,6 @@
+package entity
+
+type {{ .TableNameHumpUpper }} struct {
+    {{ .PrimaryKeyHumpUpper }} string `json:"{{.PrimaryKey}}"`
+    {{ ENTJSON .FieldsKey "\n\t" }}
+}

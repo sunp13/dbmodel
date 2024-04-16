@@ -1,0 +1,128 @@
+package models
+
+import "github.com/sunp13/dbtool"
+
+type {{ .ModelName }} struct{}
+
+// GetList
+func (m *{{.ModelName}}) GetList() (res []map[string]interface{},err error){
+    sql := `
+    select * from {{.TableName}}
+    where is_deleted = 0
+    `
+    res, err = dbtool.D.QuerySQL(sql, nil)
+    return
+}
+
+// GetInfo
+func (m *{{.ModelName}}) GetInfo(id string) (res map[string]interface{}, err error){
+    sql := `
+    select * from {{ .TableName }}
+    where {{ .PrimaryKey }} = ?
+    `
+    params := []interface{}{
+        id,
+    }
+
+    var result []map[string]interface{}
+    result, err = dbtool.D.QuerySQL(sql,params)
+    if len(result) > 0{
+        res = result[0]
+    }
+    return
+}
+
+{{ if NEQ .ForeignKey "" }}
+// GetListByFID
+func (m *{{.ModelName}}) GetListByFID(fid string) (res []map[string]interface{}, err error){
+    sql := `
+    select * from {{ .TableName }}
+    where {{ .ForeignKey }} = ?
+	and is_deleted = 0
+    `
+    params := []interface{}{
+        fid,
+    }
+
+    res, err = dbtool.D.QuerySQL(sql,params)
+    return
+}
+{{ end }}
+
+// GetPage
+func (m *{{.ModelName}}) GetPage(begin,size int64) (res []map[string]interface{},err error){
+	sql := `
+	SELECT * from {{ .TableName }}
+	where is_deleted=0
+	order by {{ .PrimaryKey }}
+	limit ?,?
+	`
+	params := []interface{}{
+		begin,
+		size,
+	}
+	res, err = dbtool.D.QuerySQL(sql, params)
+	return
+}
+
+// GetCount
+func (m *{{ .ModelName }}) GetCount() (res int64,err error){
+	sql := `
+	select count(1) as data_count from {{ .TableName }}
+	where is_deleted = 0
+	`
+	var result []map[string]interface{}
+	result, err = dbtool.D.QuerySQL(sql, nil)
+	if len(result) > 0 {
+		res, _ = strconv.ParseInt(fmt.Sprintf("%v", result[0]["data_count"]), 10, 64)
+	}
+	return
+}
+
+// AddList
+func (m *{{.ModelName}}) AddList({{ JOIN .FieldsUpper "," }} string) (res int64, err error) {
+	sql := `
+	insert into {{ .TableName }}(
+	{{ JOIN .FieldsKey ",\n\t" }},
+	add_time
+	) values ({{ JOIN .FieldsQuestion ","}},?)
+	`
+	params := []interface{}{
+	{{ JOIN .FieldsUpper ",\n\t"}},
+	time.Now().Format("2006-01-02 15:04:05"),
+	}
+
+	res, err = dbtool.D.UpdateSQL(sql, params)
+	return
+}
+
+// ModifyList
+func (m *{{ .ModelName }}) ModifyList({{ .PrimaryKeyUpper }} ,{{ JOIN .FieldsUpper "," }} string) (res int64, err error) {
+	sql := `
+	update {{ .TableName }} set
+    {{ JOIN .FieldsModify ",\n\t" }},
+	modify_time = ?
+	where {{ .PrimaryKey }} = ?
+	`
+	params := []interface{}{
+	{{ JOIN .FieldsUpper ",\n\t" }},
+	time.Now().Format("2006-01-02 15:04:05"),
+	{{ .PrimaryKeyUpper }},
+	}
+	res, err = dbtool.D.UpdateSQL(sql, params)
+	return
+}
+
+// DeleteList
+func (m *{{ .ModelName }}) DeleteList(id string) (res int64, err error) {
+	sql := `
+	update {{ .TableName }} set
+	is_deleted = 1
+	where {{ .PrimaryKey }} = ?
+	`
+	params := []interface{}{
+		id,
+	}
+	res, err = dbtool.D.UpdateSQL(sql, params)
+	return
+}
