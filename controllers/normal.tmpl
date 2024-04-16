@@ -67,6 +67,37 @@ func (c *{{ .TableNameHumpUpper }}) Page() {
 	c.ServeJSON()
 }
 
+{{ if NEQ .ForeignKey "" }}
+// @Title 列表
+// @Description 列表
+// @Param fid query int true
+// @Success 200 {object} entity.JSONResult
+// @router /list_fid [get]
+func (c *{{ .TableNameHumpUpper }}) Count() {
+	c.VerifyJSON([]string{
+		"{{ .SchemaName }}.all.ro",
+		"{{ .SchemaName }}.{{ .TableName }}.ro",
+		"{{ .SchemaName }}.{{ .TableName }}.rw",
+	})
+
+	var result entity.JSONResult
+	fid := strings.TrimSpace(c.GetString("fid"))
+
+	data, err := models.{{ .TableNameHumpUpper }}.ListFid(fid)
+	if err != nil {
+		log.Error().Str("err", err.Error()).Send()
+		result.Code = 1
+		result.Message = "系统异常"
+		c.Data["json"] = result
+		c.ServeJSON()
+		return
+	}
+	result.Result = data
+	c.Data["json"] = result
+	c.ServeJSON()
+}
+{{ end }}
+
 // @Title 信息
 // @Description 信息
 // @Param id query int true
