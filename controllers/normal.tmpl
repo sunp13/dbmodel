@@ -245,7 +245,7 @@ func (c *{{ .TableNameHumpUpper }}) Delete() {
 // @Param body body entity.CommData false "filter struct"
 // @Success 200 {object} entity.JSONResult
 // @router /filter [post]
-func (c {{ .TableNameHumpUpper }}) Filter() {
+func (c *{{ .TableNameHumpUpper }}) Filter() {
 	var result entity.JSONResult
 	var req entity.ReqCommData
 	if err := global.JSON.Unmarshal(c.Ctx.Input.RequestBody, &req); err != nil {
